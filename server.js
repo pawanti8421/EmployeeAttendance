@@ -31,9 +31,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // 🔥 FORCE FALSE (VERY IMPORTANT for localhost)
+      secure: true, // 🔥 FORCE FALSE (VERY IMPORTANT for localhost)
       httpOnly: true,
-      sameSite: "lax", // 🔥 ADD THIS
+      sameSite: "none", // 🔥 ADD THIS
       maxAge: 8 * 60 * 60 * 1000,
     },
   }),

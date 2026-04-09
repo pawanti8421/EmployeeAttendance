@@ -23,6 +23,9 @@ connectDB();
 // ── Middleware ────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.set("trust proxy", 1); // 🔥 ADD THIS LINE
+
 app.use(
   cors({
     origin: "https://employeeattandance.onrender.com",
@@ -36,9 +39,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true, // 🔥 FORCE FALSE (VERY IMPORTANT for localhost)
+      secure: true, // ✅ required for HTTPS
       httpOnly: true,
-      sameSite: "none", // 🔥 ADD THIS
+      sameSite: "none", // ✅ required for cross-site
       maxAge: 8 * 60 * 60 * 1000,
     },
   }),

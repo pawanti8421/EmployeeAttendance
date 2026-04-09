@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendanceOS — Azure Cloud System</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     TOAST CONTAINER (global notifications)
+══════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: LOGIN
+══════════════════════════════════════════════ -->
+<div id="login-page" class="page active">
+  <div class="login-container">
+
+    <div class="login-brand">
+      <div class="logo-mark">🏢</div>
+      <h1>AttendanceOS</h1>
+      <p>Azure Cloud Attendance System</p>
+    </div>
+
+    <div class="login-card">
+      <div id="login-alert" class="alert alert-error"></div>
+
+      <div class="form-group">
+        <label for="login-email">Email Address</label>
+        <input type="email" id="login-email" placeholder="you@company.com" autocomplete="email" />
+      </div>
+
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+
+      <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">
+        <span id="login-btn-text">Sign In</span>
+      </button>
+    </div>
+
+    <p style="text-align:center; margin-top:16px; font-size:12px; color:var(--text-muted);">
+      Demo admin: admin@company.com / admin123
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: DASHBOARD
+══════════════════════════════════════════════ -->
+<div id="dashboard-page" class="page">
+  <div class="app-shell">
+
+    <!-- ── Topbar ── -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <span class="brand-icon">🏢</span>
+        <span>AttendanceOS</span>
+      </div>
+
+      <div class="topbar-right">
+        <div class="user-badge">
+          <div class="user-avatar" id="avatar-initials">?</div>
+          <span class="user-badge-text" id="nav-user-name">Loading...</span>
+          <span class="role-tag" id="nav-role-tag">—</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="handleLogout()">Logout</button>
+      </div>
+    </header>
+
+    <!-- ── Sidebar ── -->
+    <nav class="sidebar">
+      <!-- User navigation -->
+      <div id="user-nav">
+        <div class="nav-section-label">User</div>
+
+        <div class="nav-link active" onclick="showSection('dashboard')" data-section="dashboard">
+          <span class="nav-icon">📊</span> Dashboard
+        </div>
+        <div class="nav-link" onclick="showSection('my-attendance')" data-section="my-attendance">
+          <span class="nav-icon">📅</span> My Attendance
+        </div>
+      </div>
+
+      <!-- Admin-only navigation (hidden for regular users) -->
+      <div id="admin-nav" style="display:none;">
+        <div class="nav-separator"></div>
+        <div class="nav-section-label">Admin</div>
+
+        <div class="nav-link" onclick="showSection('all-attendance')" data-section="all-attendance">
+          <span class="nav-icon">👥</span> All Records
+        </div>
+        <div class="nav-link" onclick="showSection('add-user')" data-section="add-user">
+          <span class="nav-icon">➕</span> Add Employee
+        </div>
+        <div class="nav-link" onclick="showSection('manage-users')" data-section="manage-users">
+          <span class="nav-icon">⚙️</span> Manage Users
+        </div>
+        <!-- Hidden nav item — activated when "View Records" is clicked -->
+        <div class="nav-link" id="nav-user-detail" data-section="user-detail" style="display:none;">
+          <span class="nav-icon">👤</span> <span id="nav-user-detail-name">Employee</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Main Content ── -->
+    <main class="main-content">
+
+      <!-- ─── SECTION: Dashboard ─── -->
+      <div id="section-dashboard" class="section active">
+        <div class="section-header">
+          <h2 id="welcome-heading">Good morning 👋</h2>
+          <p id="today-date-display" style="color:var(--text-secondary); font-family:var(--font-mono); font-size:13px;"></p>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Days</div>
+            <div class="stat-value accent" id="stat-total-days">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">This Month</div>
+            <div class="stat-value" id="stat-this-month">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Hours Today</div>
+            <div class="stat-value success" id="stat-hours-today">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Hours/Day</div>
+            <div class="stat-value warning" id="stat-avg-hours">—</div>
+          </div>
+        </div>
+
+        <!-- Clock-in panel -->
+        <div class="attendance-panel">
+          <div class="panel-title">Mark Attendance</div>
+
+          <div class="clock-display" id="live-clock">00:00:00</div>
+          <div class="date-display" id="live-date"></div>
+
+          <div class="action-buttons">
+            <button class="btn btn-success" id="btn-mark-in" onclick="markIn()">
+              ⏱ Mark IN
+            </button>
+            <button class="btn btn-danger" id="btn-mark-out" onclick="markOut()">
+              🏁 Mark OUT
+            </button>
+          </div>
+
+          <div class="status-badges" id="today-status-badges"></div>
+        </div>
+
+        <!-- Recent attendance mini-table -->
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Recent Attendance</span>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>In Time</th>
+                  <th>Out Time</th>
+                  <th>Hours</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="recent-attendance-body">
+                <tr>
+                  <td colspan="5">
+                    <div class="empty-state">
+                      <div class="empty-icon">📋</div>
+                      <p>Loading attendance data...</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION: My Attendance ─── -->
+      <div id="section-my-attendance" class="section">
+        <div class="section-header">
+          <h2>My Attendance Records</h2>
+          <p>Full history of your check-ins and check-outs</p>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Attendance Log</span>
+            <button class="btn btn-outline btn-sm" onclick="loadMyAttendance()">↻ Refresh</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>In Time</th>
+                  <th>Out Time</th>
+                  <th>Total Hours</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="my-attendance-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION: All Attendance (Admin) ─── -->
+      <div id="section-all-attendance" class="section">
+        <div class="section-header">
+          <h2>All Employee Records</h2>
+          <p>Complete attendance log for all employees</p>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Company Attendance Log</span>
+            <button class="btn btn-outline btn-sm" onclick="loadAllAttendance()">↻ Refresh</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Employee</th>
+                  <th>Email</th>
+                  <th>Date</th>
+                  <th>In Time</th>
+                  <th>Out Time</th>
+                  <th>Total Hours</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="all-attendance-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION: Add User (Admin) ─── -->
+      <div id="section-add-user" class="section">
+        <div class="section-header">
+          <h2>Add New Employee</h2>
+          <p>Create a new user account for the system</p>
+        </div>
+
+        <div class="form-card">
+          <div id="add-user-alert" class="alert"></div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="new-name">Full Name</label>
+              <input type="text" id="new-name" placeholder="Jane Smith" />
+            </div>
+            <div class="form-group">
+              <label for="new-role">Role</label>
+              <select id="new-role">
+                <option value="user">Employee (User)</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="new-email">Email Address</label>
+            <input type="email" id="new-email" placeholder="jane@company.com" />
+          </div>
+
+          <div class="form-group">
+            <label for="new-password">Temporary Password</label>
+            <input type="password" id="new-password" placeholder="Set a password" />
+          </div>
+
+          <button class="btn btn-primary" onclick="addUser()" style="width:auto; min-width:160px;">
+            <span id="add-user-btn-text">+ Create Employee</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── SECTION: Manage Users (Admin) ─── -->
+      <div id="section-manage-users" class="section">
+        <div class="section-header">
+          <h2>Manage Employees</h2>
+          <p>View all registered employees and their roles</p>
+        </div>
+
+        <!-- ── Search bar ── -->
+        <div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+          <div style="position:relative; flex:1; max-width:360px;">
+            <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:14px;">🔍</span>
+            <input
+              type="text"
+              id="user-search-input"
+              placeholder="Search by name or email…"
+              oninput="filterUsers()"
+              style="width:100%; padding:9px 14px 9px 36px; background:var(--bg-card);
+                     border:1px solid var(--border); border-radius:var(--radius-sm);
+                     color:var(--text-primary); font-family:var(--font-sans); font-size:13px;
+                     outline:none; transition:border-color .2s;"
+              onfocus="this.style.borderColor='var(--accent)'"
+              onblur="this.style.borderColor='var(--border)'"
+            />
+          </div>
+          <span id="user-search-count" style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);"></span>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Employee Directory</span>
+            <button class="btn btn-outline btn-sm" onclick="loadUsers()">↻ Refresh</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>View Attendance</th>
+                </tr>
+              </thead>
+              <tbody id="users-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION: User Detail Dashboard (Admin) ─── -->
+      <div id="section-user-detail" class="section">
+
+        <!-- Back button + header -->
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:24px;">
+          <button class="btn btn-outline btn-sm" onclick="showSection('manage-users')" style="gap:6px;">
+            ← Back
+          </button>
+          <div>
+            <h2 style="font-size:22px; font-weight:700; letter-spacing:-0.5px;" id="detail-heading">Employee Dashboard</h2>
+            <p style="color:var(--text-secondary); font-size:13px; margin-top:2px;" id="detail-subheading">Attendance overview</p>
+          </div>
+        </div>
+
+        <!-- User Info Card -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin-bottom:24px;">
+          <div class="stat-card" style="display:flex; align-items:center; gap:14px;">
+            <div style="width:44px; height:44px; border-radius:50%; background:var(--accent-dim);
+                        border:1px solid var(--accent); display:flex; align-items:center;
+                        justify-content:center; font-size:16px; font-weight:700; color:var(--accent);
+                        flex-shrink:0;" id="detail-avatar">?</div>
+            <div>
+              <div style="font-size:11px; font-family:var(--font-mono); text-transform:uppercase;
+                          letter-spacing:.8px; color:var(--text-muted); margin-bottom:3px;">Employee</div>
+              <div style="font-weight:600; font-size:14px;" id="detail-name">—</div>
+              <div style="font-size:12px; color:var(--text-secondary);" id="detail-email">—</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Role</div>
+            <div style="margin-top:6px;" id="detail-role-badge">—</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Total Days Present</div>
+            <div class="stat-value accent" id="detail-total-days">—</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Total Hours Worked</div>
+            <div class="stat-value success" id="detail-total-hours">—</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Avg Hours / Day</div>
+            <div class="stat-value warning" id="detail-avg-hours">—</div>
+          </div>
+        </div>
+
+        <!-- Attendance Table -->
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Attendance Records</span>
+            <button class="btn btn-outline btn-sm" id="detail-refresh-btn" onclick="">↻ Refresh</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>In Time</th>
+                  <th>Out Time</th>
+                  <th>Total Hours</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="detail-attendance-body">
+                <tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><p>Select an employee to view records</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /#section-user-detail -->
+
+    </main><!-- /.main-content -->
+  </div><!-- /.app-shell -->
+</div><!-- /#dashboard-page -->
+
+<script src="/js/app.js"></script>
+</body>
+</html>

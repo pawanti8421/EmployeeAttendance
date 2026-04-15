@@ -8,6 +8,7 @@ const session = require("express-session");
 const cors = require("cors");
 const path = require("path");
 const connectDB = require("./config/db");
+const networkRoutes = require("./routes/network");
 
 // Routes
 const authRoutes = require("./routes/auth");
@@ -16,6 +17,7 @@ const attendanceRoutes = require("./routes/attendance");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === "production";
 
 // ── Connect to MongoDB Atlas ──────────────────
 connectDB();
@@ -28,7 +30,9 @@ app.set("trust proxy", 1); // 🔥 ADD THIS LINE
 
 app.use(
   cors({
-    origin: "https://employeeattandance.onrender.com",
+    origin: isProduction
+      ? "https://employeeattandance.onrender.com"
+      : "http://localhost:3000",
     credentials: true,
   }),
 );
@@ -39,10 +43,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true, // ✅ required for HTTPS
+      secure: isProduction, // 🔥 dynamic
       httpOnly: true,
-      sameSite: "none", // ✅ required for cross-site
-      maxAge: 8 * 60 * 60 * 1000,
+      sameSite: isProduction ? "none" : "lax", // 🔥 dynamic
     },
   }),
 );
@@ -54,6 +57,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api", authRoutes);
 app.use("/api", userRoutes);
 app.use("/api", attendanceRoutes);
+app.use("/api", networkRoutes);
 
 // ── Health check (used by hosting platforms) ──
 app.get("/health", (req, res) => {

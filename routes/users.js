@@ -2,7 +2,7 @@
 // Admin-only: create users, list users
 
 const express = require("express");
-const User = require("../models/User");
+const CompanyUser = require("../models/User");
 const { requireAdmin } = require("../middleware/auth");
 const router = express.Router();
 
@@ -23,7 +23,7 @@ router.post("/add-user", requireAdmin, async (req, res) => {
 
   try {
     // Check for duplicate email
-    const existing = await User.findOne({ email });
+    const existing = await CompanyUser.findOne({ email });
     if (existing) {
       return res
         .status(409)
@@ -31,7 +31,7 @@ router.post("/add-user", requireAdmin, async (req, res) => {
     }
 
     // Create user — password is hashed automatically by the pre-save hook
-    const user = await User.create({
+    const user = await CompanyUser.create({
       name: name.trim(),
       email,
       password,
@@ -39,7 +39,7 @@ router.post("/add-user", requireAdmin, async (req, res) => {
     });
 
     res.status(201).json({
-      message: "User created successfully",
+      message: "CompanyUser created successfully",
       user: {
         id: user._id,
         name: user.name,
@@ -66,7 +66,7 @@ router.post("/add-user", requireAdmin, async (req, res) => {
 router.get("/users", requireAdmin, async (req, res) => {
   try {
     // toJSON() strips password automatically
-    const users = await User.find({}).sort({ name: 1 });
+    const users = await CompanyUser.find({}).sort({ name: 1 });
     res.json({ users });
   } catch (err) {
     console.error("List users error:", err);
@@ -77,11 +77,11 @@ router.get("/users", requireAdmin, async (req, res) => {
 // ─────────────────────────────────────────────
 //  GET /api/user/:id  (admin only)
 //  Returns a single user's details by ID.
-//  Used by the User Detail Dashboard.
+//  Used by the CompanyUser Detail Dashboard.
 // ─────────────────────────────────────────────
 router.get("/user/:id", requireAdmin, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await CompanyUser.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }

@@ -156,6 +156,9 @@ function showSection(sectionId) {
     case "manage-users":
       loadUsers();
       break;
+    case "network-settings":
+      loadNetworkSettings();
+      break;
     // user-detail is loaded by openUserDetail(), not lazy-loaded here
   }
 }
@@ -781,4 +784,162 @@ function esc(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NETWORK SETTINGS  (Admin — Feature 1 & 5)
+   Manage office IP whitelist. All functions are admin-only.
+═══════════════════════════════════════════════════════════ */
+
+/**
+ * Entry point when admin opens Network Settings section.
+ * Detects their IP and loads the current whitelist.
+ */
+async function loadNetworkSettings() {
+  detectMyIP();
+  loadOfficeIPs();
+}
+
+/**
+ * Calls /api/my-ip and displays the result so the admin
+ * can easily add their current IP to the whitelist.
+ */
+async function detectMyIP() {
+  const display = document.getElementById("my-ip-display");
+  if (!display) return;
+  display.textContent = "detecting…";
+  try {
+    const res = await api("GET", "/api/my-ip");
+    display.textContent = res.ip || "Unknown";
+  } catch {
+    display.textContent = "Could not detect";
+  }
+}
+
+/**
+ * Copies the detected IP into the add-IP input field.
+ */
+function useMyIP() {
+  const ipDisplay = document.getElementById("my-ip-display").textContent;
+  const ipInput = document.getElementById("new-ip");
+  if (
+    ipDisplay &&
+    ipDisplay !== "detecting…" &&
+    ipDisplay !== "Could not detect"
+  ) {
+    ipInput.value = ipDisplay;
+    ipInput.focus();
+  }
+}
+
+/**
+ * Fetches the current whitelist from the backend and renders
+ * it in the office-ips-body table.
+ */
+async function loadOfficeIPs() {
+  const tbody = document.getElementById("office-ips-body");
+  if (!tbody) return;
+  tbody.innerHTML = loadingRow(6);
+
+  try {
+    const res = await api("GET", "/api/office-ips");
+    const ips = res.ips;
+
+    if (ips.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="6">
+          <div class="empty-state">
+            <div class="empty-icon">🌐</div>
+            <p>No IPs configured — all networks are currently <strong style="color:var(--success)">allowed</strong></p>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = ips
+      .map(
+        (entry, i) => `
+      <tr>
+        <td class="mono">${i + 1}</td>
+        <td>
+          <span style="font-family:var(--font-mono); font-size:13px;
+                       background:var(--accent-dim); color:var(--accent);
+                       padding:2px 8px; border-radius:4px; border:1px solid var(--accent);">
+            ${esc(entry.ip)}
+          </span>
+        </td>
+        <td>${esc(entry.label || "—")}</td>
+        <td style="color:var(--text-muted)">${esc(entry.addedBy?.name || "—")}</td>
+        <td class="mono" style="color:var(--text-muted); font-size:12px;">
+          ${formatDate(entry.createdAt)}
+        </td>
+        <td>
+          <button class="btn btn-sm"
+            style="background:var(--danger-dim); color:var(--danger);
+                   border:1px solid var(--danger); padding:4px 12px;"
+            onclick="removeOfficeIP('${esc(entry._id)}', '${esc(entry.ip)}')">
+            🗑 Remove
+          </button>
+        </td>
+      </tr>`,
+      )
+      .join("");
+  } catch (err) {
+    tbody.innerHTML = errorRow(6, err.message);
+  }
+}
+
+/**
+ * Submits the add-IP form to POST /api/office-ips.
+ */
+async function addOfficeIP() {
+  const ip = document.getElementById("new-ip").value.trim();
+  const label = document.getElementById("new-ip-label").value.trim();
+  const btnText = document.getElementById("add-ip-btn-text");
+
+  hideAlert("network-alert");
+
+  if (!ip) {
+    showAlert("network-alert", "Please enter an IP address.", "error");
+    return;
+  }
+
+  btnText.innerHTML = '<span class="spinner"></span> Adding…';
+
+  try {
+    const res = await api("POST", "/api/office-ips", { ip, label });
+    showAlert("network-alert", `✅ ${res.message}`, "success");
+    // Clear inputs
+    document.getElementById("new-ip").value = "";
+    document.getElementById("new-ip-label").value = "";
+    showToast("success", "IP Added", `${res.entry.ip} is now whitelisted.`);
+    loadOfficeIPs(); // refresh the table
+  } catch (err) {
+    showAlert("network-alert", err.message, "error");
+  }
+
+  btnText.textContent = "+ Add to Whitelist";
+}
+
+/**
+ * Sends DELETE /api/office-ips/:id after inline confirmation.
+ * @param {string} id  — MongoDB _id of the OfficeIP document
+ * @param {string} ip  — human-readable IP string for the confirm dialog
+ */
+async function removeOfficeIP(id, ip) {
+  if (
+    !confirm(
+      `Remove ${ip} from the whitelist?\n\nUsers on this network will no longer be able to mark attendance.`,
+    )
+  ) {
+    return;
+  }
+
+  try {
+    const res = await api("DELETE", `/api/office-ips/${id}`);
+    showToast("info", "IP Removed", res.message);
+    loadOfficeIPs(); // refresh the table
+  } catch (err) {
+    showToast("error", "Remove Failed", err.message);
+  }
 }

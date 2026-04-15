@@ -20,7 +20,10 @@ function todayStr() {
 // Helper: format a Date object to "HH:MM:SS"
 function fmtTime(d) {
   if (!d) return null;
-  return new Date(d).toLocaleTimeString("en-GB", { hour12: false });
+  return new Date(d).toLocaleTimeString("en-IN", {
+    hour12: false,
+    timeZone: "Asia/Kolkata",
+  });
 }
 
 // ─────────────────────────────────────────────
